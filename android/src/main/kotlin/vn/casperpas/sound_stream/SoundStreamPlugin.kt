@@ -128,9 +128,11 @@ public class SoundStreamPlugin : FlutterPlugin,
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         methodChannel.setMethodCallHandler(null)
-        mListener?.onMarkerReached(null)
-        mListener?.onPeriodicNotification(null)
-        mListener = null
+        if(mListener!=null){
+            mListener?.onMarkerReached(null)
+            mListener?.onPeriodicNotification(null)
+            mListener = null
+        }
         mRecorder?.stop()
         mRecorder?.release()
         mRecorder = null
@@ -378,22 +380,28 @@ public class SoundStreamPlugin : FlutterPlugin,
 
     private fun createRecordListener(): OnRecordPositionUpdateListener? {
         return object : OnRecordPositionUpdateListener {
-            override fun onMarkerReached(recorder: AudioRecord) {
-                recorder.read(audioData!!, 0, mRecorderBufferSize)
+            override fun onMarkerReached( recorder: AudioRecord?) {
+                if(recorder!=null){
+                    recorder.read(audioData!!, 0, mRecorderBufferSize)
+                }
+
             }
 
-            override fun onPeriodicNotification(recorder: AudioRecord) {
-                val data = audioData!!
-                val shortOut = recorder.read(data, 0, mPeriodFrames)
-                // this condistion to prevent app crash from happening in Android Devices
-                // See issues: https://github.com/CasperPas/flutter-sound-stream/issues/25
-                if (shortOut < 1) { return }
-                // https://flutter.io/platform-channels/#codec
-                // convert short to int because of platform-channel's limitation
-                val byteBuffer = ByteBuffer.allocate(shortOut * 2)
-                byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(data)
+            override fun onPeriodicNotification( recorder: AudioRecord?) {
+                if(recorder!=null){
+                    val data = audioData!!
+                    val shortOut = recorder.read(data, 0, mPeriodFrames)
+                    // this condistion to prevent app crash from happening in Android Devices
+                    // See issues: https://github.com/CasperPas/flutter-sound-stream/issues/25
+                    if (shortOut < 1) { return }
+                    // https://flutter.io/platform-channels/#codec
+                    // convert short to int because of platform-channel's limitation
+                    val byteBuffer = ByteBuffer.allocate(shortOut * 2)
+                    byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(data)
 
-                sendEventMethod("dataPeriod", byteBuffer.array())
+                    sendEventMethod("dataPeriod", byteBuffer.array())
+                }
+
             }
         }
     }
